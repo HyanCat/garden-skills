@@ -7,15 +7,15 @@
 #   bash scripts/scaffold.sh --list-themes
 #
 # 例子：
-#   bash .cursor/skills/web-video-presentation/scripts/scaffold.sh ./presentation
-#   bash .cursor/skills/web-video-presentation/scripts/scaffold.sh ./talk --theme=paper-press
-#   bash .cursor/skills/web-video-presentation/scripts/scaffold.sh --list-themes
+#   bash .agent/skills/web-video-presentation/scripts/scaffold.sh ./presentation
+#   bash .agent/skills/web-video-presentation/scripts/scaffold.sh ./talk --theme=paper-press
+#   bash .agent/skills/web-video-presentation/scripts/scaffold.sh --list-themes
 #
 # 跑完后，看 SKILL.md "Phase 2.4 实现单章" + references/CHAPTER-CRAFT.md
 # 了解每章怎么写。卡壳时翻 references/EXAMPLES/ 找完整章节 anchor。
 #
 # 之后切换主题，覆盖一个文件即可：
-#   cp .cursor/skills/web-video-presentation/themes/<id>/tokens.css \
+#   cp .agent/skills/web-video-presentation/themes/<id>/tokens.css \
 #      <project>/src/styles/tokens.css
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -151,17 +151,22 @@ cp "$TEMPLATES/src/chapters/01-example/narrations.ts"   src/chapters/01-example/
 
 # Audio pipeline scripts (extract-narrations + synthesize-audio).
 cp "$TEMPLATES/scripts/extract-narrations.ts"  scripts/extract-narrations.ts
-cp "$TEMPLATES/scripts/synthesize-audio.sh"    scripts/synthesize-audio.sh
-chmod +x scripts/synthesize-audio.sh
+cp "$TEMPLATES/scripts/synthesize-audio.py"    scripts/synthesize-audio.py
+chmod +x scripts/synthesize-audio.py
 
-# Wire the audio scripts into npm so contributors don't have to remember
-# the exact command. Uses node to merge into the existing package.json.
+# Dev server launcher (kills port 5174 before starting to avoid orphaned processes).
+cp "$TEMPLATES/scripts/start-dev.sh"           scripts/start-dev.sh
+chmod +x scripts/start-dev.sh
+
+# Wire scripts into npm so contributors don't have to remember the exact command.
+# Uses node to merge into the existing package.json.
 node -e '
 const fs = require("fs");
 const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
 p.scripts = Object.assign({}, p.scripts, {
+  "dev":                "bash scripts/start-dev.sh",
   "extract-narrations": "tsx scripts/extract-narrations.ts",
-  "synthesize-audio":   "bash scripts/synthesize-audio.sh",
+  "synthesize-audio":   "python3 scripts/synthesize-audio.py",
 });
 fs.writeFileSync("package.json", JSON.stringify(p, null, 2) + "\n");
 '
@@ -212,8 +217,8 @@ cat <<EOF
 音频合成（可选，录制前做）：
 
   npm run extract-narrations    # 扫所有章节 narrations.ts → audio-segments.json
-  npm run synthesize-audio      # 调 mmx-cli 合成 → public/audio/<id>/<step>.mp3
-                                # （没装 mmx 见 references/AUDIO.md）
+  npm run synthesize-audio      # 调 MiniMax API 合成 → public/audio/<id>/<step>.mp3
+                                # （需要 MINIMAX_API_KEY，见 references/AUDIO.md）
 
 写章节时必读（单一入口，路径在 SKILL 仓库内）：
 

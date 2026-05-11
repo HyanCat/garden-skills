@@ -9,8 +9,8 @@ Auto 模式会自动按 step 播放并自动推进——录屏可以一镜到底
 > 也不再手写 `totalSteps`。这一改根除了"网页 step 和音频文件数对不上"
 > 这个老问题。
 
-默认用 **MiniMax CLI（`mmx-cli`）**。本机没装就**询问用户**用什么 TTS，
-不要悄悄假装合成成功。
+默认用 **MiniMax Text-to-Audio v2 API**，通过 `scripts/synthesize-audio.py`
+直接调用（无需额外 CLI 工具，只需 Python 3 标准库）。
 
 ---
 
@@ -58,50 +58,58 @@ npm run extract-narrations
 > 空字符串的 narration 会被自动跳过（不烧 TTS token）——运行时 Auto 模式
 > 按字数估时撑过这种"无声过场"step。
 
-### 2. 合成
+### 2. 配置 API Key
+
+在项目根目录创建 `.env` 文件（已在 `.gitignore` 中）：
 
 ```bash
-which mmx
+# presentation/.env
+MINIMAX_API_KEY=sk-xxxxx
+# MINIMAX_GROUP_ID=xxxxxxxx   # 部分账号需要，不需要则留空
 ```
 
-- 找到 → 走 [2.A](#2a-mmx-cli-合成)
-- 没找到 → 走 [2.B](#2b-退化路径)
+API key 在 [MiniMax 开放平台](https://platform.minimaxi.com) 获取：
+注册 → 控制台 → API Keys → 新建。
 
-#### 2.A mmx-cli 合成
-
-##### 鉴权检查
+也可直接 export：
 
 ```bash
-mmx auth status
+export MINIMAX_API_KEY=sk-xxxxx
 ```
 
-未登录 → 提示用户：
-
-```
-你的 mmx-cli 未登录。请运行：
-  mmx auth login --api-key sk-xxxxx
-（API key 在 https://platform.minimaxi.com 获取）
-```
-
-登录前**不要继续**。
-
-##### 调用合成脚本
+### 3. 合成
 
 ```bash
+cd presentation
 npm run synthesize-audio              # 增量：跳过已存在的 mp3
 npm run synthesize-audio -- --force   # 全部重合成
-npm run synthesize-audio -- --voice=<voice-id>  # 指定音色
+npm run synthesize-audio -- --voice=male-qn-jingying  # 指定音色
+npm run synthesize-audio -- --list-voices              # 查看常用音色
 ```
 
-脚本**串行**调 mmx（避免 rate limit），**自动跳过已存在文件**（断点续合
-不烧重复 token）。每条打印进度：
+脚本**串行**调用 MiniMax API（避免 rate limit），**自动跳过已存在文件**
+（断点续合不烧重复 token）。每条打印进度：
 
 ```
-[  3/24] coldopen/3.mp3   ✓ 4s
-[  4/24] coldopen/4.mp3   skip (exists)
+[  3/24] coldopen/3.mp3         ✓ 4.2s
+[  4/24] coldopen/4.mp3         skip (exists)
 ```
 
-##### 校验时长
+#### 常用音色 ID
+
+| voice_id | 描述 |
+|---|---|
+| `female-tianmei` | 甜美女声（默认）|
+| `female-yujie` | 御姐女声 |
+| `female-shaonv` | 少女音 |
+| `male-qn-qingse` | 青涩男声 |
+| `male-qn-jingying` | 精英男声 |
+| `presenter_male` | 播音男声 |
+| `audiobook_female_1` | 有声书女声 |
+
+完整列表见 MiniMax 文档，也可在控制台试听后选 ID。
+
+#### 校验时长
 
 合成完后跑：
 
@@ -116,34 +124,12 @@ done
 着该 step 的 narration 写得过密，或者 step 没拆够。让用户决定**改稿子
 重合**还是**回章节代码拆 step**。
 
-#### 2.B 退化路径（mmx-cli 没装）
-
-不要假装能合成。问用户：
-
-```
-本机没检测到 mmx-cli。我可以：
-
-  1. 帮你安装 MiniMax CLI（推荐）
-     需要：npm 全局安装 + 一个 API key
-     运行：npm install -g mmx-cli && mmx auth login --api-key sk-xxxxx
-     API key 在 https://platform.minimaxi.com 获取
-
-  2. 用其它 TTS（你来提供）
-     告诉我用什么 —— OpenAI TTS / 阿里云 / Azure / ElevenLabs / 其它
-     最好附上调用方式（CLI 命令 / API endpoint + 参数）
-     我会改 scripts/synthesize-audio.sh 让它调你的工具，
-     输出文件路径仍按 audio-segments.json 的 audio 字段写
-
-  3. 暂时跳过
-     稿子和 narrations 都在，你自己用任意 TTS 录制即可
-```
-
-如果用户选 2，按相同的"读 audio-segments.json → 串行调用 → 落盘 →
-校验"流程，把 `mmx speech synthesize` 那一行换成对方的命令即可。
-
 ---
 
-## 用户自带 TTS 的最小契约
+## 用户自带 TTS
+
+如果不用 MiniMax，可以替换 `synthesize-audio.py` 里的 `synthesize_one`
+函数，其它逻辑（读 json、增量跳过、进度打印）不需要改。
 
 任何 TTS 后端只要满足三个能力即可接进来：
 
@@ -153,8 +139,16 @@ done
 | 错误反馈 | —— | 失败时明确报错（rate limit / auth / 内容审核 / 网络） |
 | 输出可指定路径 | 目标文件路径 | 直接写到该路径 |
 
-不满足"输出可指定路径"的 API（比如返回二进制流）就在外面包一层 curl /
-node script 把响应写到目标路径。
+不满足"输出可指定路径"的 API（如返回二进制流）就在外面包一层把响应写到目标路径。
+
+常见替代 TTS：
+
+```
+OpenAI TTS     — POST https://api.openai.com/v1/audio/speech
+阿里云语音合成  — POST https://nls-gateway.cn-shanghai.aliyuncs.com/...
+Azure TTS      — POST https://<region>.tts.speech.microsoft.com/...
+ElevenLabs     — POST https://api.elevenlabs.io/v1/text-to-speech/<voice_id>
+```
 
 ---
 
@@ -185,20 +179,21 @@ Auto 模式首次需要按一次 `Space` 启动（绕过浏览器自动播放限
 
 | 现象 | 原因 / 修法 |
 |---|---|
+| `MINIMAX_API_KEY 未设置` | 在项目根 `.env` 里添加 `MINIMAX_API_KEY=sk-xxxxx` |
+| `HTTP 401` | API key 无效或已过期，重新生成 |
+| `HTTP 429` | Rate limit；脚本已串行，等几秒重跑即可（已存在文件自动跳过）|
+| `API error: ...content...` | 内容审核拦截，修改对应 narration 文本 |
 | `chapter id "X" registered but no matching folder found` | 章节文件夹应命名为 `NN-<id>`；id 必须等于 chapters.ts 里注册的 |
 | `narrations.ts in X must export an array named "narrations"` | 该章节的 narrations.ts 没 export 名为 narrations 的数组 |
-| `mmx: command not found` | `npm install -g mmx-cli`；npm 全局 bin 不在 PATH 时 `npm config get prefix` 看一下 |
-| `401 / unauthorized` | `mmx auth login --api-key sk-xxxxx` 重新登录 |
 | 中间断了几条没合成 | `npm run synthesize-audio` 重跑 —— 已存在文件会跳过 |
-| 中文音色不自然 | mmx 默认音色未必最佳；查 `mmx speech --help` 看 `--voice` 可选项，然后传 `--voice=<id>` |
-| 整段合成被截断 | 单段过长（mmx 默认上限约 5000 字符）。在 narrations.ts 里把这条拆成两条（也意味着该 step 应该拆成两个 step） |
+| 中文音色不自然 | 用 `--list-voices` 看可用音色，换一个再 `--force` 重合成 |
+| 整段合成被截断 | 单段过长（上限约 5000 字符）。在 narrations.ts 里把这条拆成两条 |
 | 浏览器没播音频 | Auto / Audio 模式下首次需要用户手势——确认你按了 SPACE 启动 Auto，或者点过页面 |
-| 音频 404 但 Auto 模式还能跑 | 找不到 mp3 时 useAudioPlayer 退化到字数估时（4 字/秒），保证预览不中断 |
+| 音频 404 但 Auto 模式还能跑 | 找不到 mp3 时 useAudioPlayer 退化到字数估时，保证预览不中断 |
 
 ---
 
 ## 相关链接
 
-- mmx-cli 仓库：<https://github.com/MiniMax-AI/cli>
-- 官方文档：<https://platform.minimaxi.com/docs/token-plan/minimax-cli>
-- 参数 / 音色查询：`mmx speech --help`
+- MiniMax TTS API 文档：<https://platform.minimaxi.com/document/T2A%20V2>
+- 音色试听：MiniMax 控制台 → 语音合成 → 音色列表

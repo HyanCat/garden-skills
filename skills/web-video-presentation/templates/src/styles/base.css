@@ -50,8 +50,8 @@ body {
   --t-display-2:   clamp(80px, 7vw, 128px);
   --t-h1:          clamp(56px, 5vw, 88px);
   --t-h2:          clamp(40px, 3.6vw, 60px);
-  --t-body:        20px;
-  --t-micro:       12px;
+  --t-body:        24px;
+  --t-micro:       14px;
 
   /* ── Tracking presets (used by primitive classes) ── */
   --track-tight:   -0.025em;   /* large serif display */
@@ -67,8 +67,8 @@ body {
   --space-9:    96px;
 
   /* ── Stage padding (theme can dial density) ── */
-  --stage-pad-x: 96px;
-  --stage-pad-y: 80px;
+  --stage-pad-x: 80px;
+  --stage-pad-y: 64px;
 
   /* ── Radius scale (themes reference these via --r-card; chapters write
         their own radii freely) ── */
@@ -208,7 +208,7 @@ body {
 }
 .kicker {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-mute);
@@ -307,7 +307,7 @@ body {
   align-items: center;
   gap: var(--space-3);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-mute);
@@ -338,7 +338,7 @@ body {
   border: var(--bw-1) solid var(--rule);
   border-radius: var(--r-pill);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-mute);
@@ -395,7 +395,7 @@ body {
 .masthead .issue {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-mute);

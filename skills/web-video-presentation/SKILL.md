@@ -62,7 +62,8 @@ my-video/
     │   └── narrations.ts     # ★ step 数 + 口播文本的唯一真相源
     ├── scripts/
     │   ├── extract-narrations.ts   # 扫所有 narrations.ts → audio-segments.json
-    │   └── synthesize-audio.sh     # 调 mmx 合成 mp3
+    │   ├── synthesize-audio.py     # 调 MiniMax API 合成 mp3
+    │   └── start-dev.sh            # 清理端口 5174 后启动 vite
     ├── audio-segments.json         # extract 产出（合成前 review）
     └── public/audio/<id>/<N>.mp3   # 可选：合成的音频
 ```
@@ -232,11 +233,11 @@ Phase 2.4 的"实现单章"会重复 N 次 —— 每次都要回看核心约束
 ### 2.1 脚手架
 
 ```bash
-bash .cursor/skills/web-video-presentation/scripts/scaffold.sh \
+bash .agent/skills/web-video-presentation/scripts/scaffold.sh \
   ./presentation \
   --theme=<用户选的主题 id>
 
-bash .cursor/skills/web-video-presentation/scripts/scaffold.sh --list-themes
+bash .agent/skills/web-video-presentation/scripts/scaffold.sh --list-themes
 ```
 
 > 自定义主题 → 先按 [`references/THEMES.md`](references/THEMES.md)
@@ -268,7 +269,7 @@ rm -rf presentation/src/chapters/01-example
 **做完第 1 章后必须停下来**等用户验收：
 
 ```
-第 1 章 <id> 做完了，dev server 在 localhost:5173 运行。
+第 1 章 <id> 做完了，dev server 在 localhost:5174 运行。
 
 验收重点：
   □ 视觉气质对不对？符合 <theme nameZh> 的预期吗？
@@ -351,13 +352,13 @@ rm -rf presentation/src/chapters/01-example
 Phase 2 结束后必须停下来，问用户：
 
 ```
-网页做完，{N} 章 {M} 步，dev server 在 localhost:5173 跑着。
+网页做完，{N} 章 {M} 步，dev server 在 localhost:5174 跑着。
 
 要不要合成音频做"自动播放录屏"？
   ✓ 合成 → 扫所有章节的 narrations.ts 出 audio-segments.json，
-           调 mmx-cli 合成每步一个 mp3 到 public/audio/。
+           调 MiniMax API 合成每步一个 mp3 到 public/audio/。
            合成完后用 ?auto=1 模式可以一镜到底录屏（音视频天然同步）。
-           本机没装 mmx 会问你用什么 TTS。
+           需要 MINIMAX_API_KEY（见 references/AUDIO.md 获取方式）。
   ✗ 不合成 → 跳过 Phase 3，直接 Phase 4 用手动录屏 + 后期配音。
 ```
 
@@ -373,7 +374,8 @@ Phase 2 结束后必须停下来，问用户：
 cd presentation
 npm run extract-narrations   # 扫所有 narrations.ts → audio-segments.json
 # 让用户扫一眼 audio-segments.json 确认文本对
-npm run synthesize-audio     # 调 mmx 串行合成；增量、跳过已存在
+npm run synthesize-audio     # 调 MiniMax API 串行合成；增量、跳过已存在
+                             # 需要 MINIMAX_API_KEY（见 references/AUDIO.md）
 ```
 
 合成完告诉用户：输出位置 / 总段数 / 哪些段时长异常（太长 = 该 step 拆
@@ -387,7 +389,7 @@ npm run synthesize-audio     # 调 mmx 串行合成；增量、跳过已存在
 
 | 场景 | 推荐路径 |
 |---|---|
-| Phase 3 已合成音频 | **Auto 模式一镜到底**：浏览器开 `localhost:5173/?auto=1` → 按 SPACE → 整片自动播完 → 停录 → 裁头尾即成片，**无需后期对音轨** |
+| Phase 3 已合成音频 | **Auto 模式一镜到底**：浏览器开 `localhost:5174/?auto=1` → 按 SPACE → 整片自动播完 → 停录 → 裁头尾即成片，**无需后期对音轨** |
 | Phase 3 跳过 | 默认 Manual 模式手动点击推进 → 后期任意剪辑工具配音 |
 
 > agent 在 Phase 3 / Checkpoint Audio 后**主动告诉用户**适合的录屏路径。
