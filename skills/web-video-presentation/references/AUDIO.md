@@ -9,8 +9,9 @@ Auto 模式会自动按 step 播放并自动推进——录屏可以一镜到底
 > 也不再手写 `totalSteps`。这一改根除了"网页 step 和音频文件数对不上"
 > 这个老问题。
 
-默认用 **MiniMax Text-to-Audio v2 API**，通过 `scripts/synthesize-audio.py`
-直接调用（无需额外 CLI 工具，只需 Python 3 标准库）。
+默认用 **MiniMax Text-to-Audio v2 API**（模型 `speech-2.8-hd`，音色 `Chinese (Mandarin)_Gentleman` 温润男声），
+通过 `scripts/synthesize-audio.py` 直接调用（无需额外 CLI 工具，只需 Python 3 标准库）。
+脚本启动时会交互确认模型和音色，可以在此选择其他音色。
 
 ---
 
@@ -81,10 +82,12 @@ export MINIMAX_API_KEY=sk-xxxxx
 
 ```bash
 cd presentation
-npm run synthesize-audio              # 增量：跳过已存在的 mp3
-npm run synthesize-audio -- --force   # 全部重合成
-npm run synthesize-audio -- --voice=male-qn-jingying  # 指定音色
-npm run synthesize-audio -- --list-voices              # 查看常用音色
+npm run synthesize-audio                              # 交互确认模型/音色，增量合成
+npm run synthesize-audio -- --yes                     # 跳过确认，直接用默认配置
+npm run synthesize-audio -- --force                   # 全部重合成
+npm run synthesize-audio -- --voice=<id> --yes        # 指定音色并跳过确认
+npm run synthesize-audio -- --model=<id> --yes        # 指定模型并跳过确认
+npm run synthesize-audio -- --list-voices             # 查看常用音色列表
 ```
 
 脚本**串行**调用 MiniMax API（避免 rate limit），**自动跳过已存在文件**
@@ -95,19 +98,24 @@ npm run synthesize-audio -- --list-voices              # 查看常用音色
 [  4/24] coldopen/4.mp3         skip (exists)
 ```
 
-#### 常用音色 ID
+#### 常用音色 ID（中文普通话）
 
 | voice_id | 描述 |
 |---|---|
-| `female-tianmei` | 甜美女声（默认）|
-| `female-yujie` | 御姐女声 |
-| `female-shaonv` | 少女音 |
-| `male-qn-qingse` | 青涩男声 |
-| `male-qn-jingying` | 精英男声 |
-| `presenter_male` | 播音男声 |
-| `audiobook_female_1` | 有声书女声 |
+| `Chinese (Mandarin)_Gentleman` | 温润男声（**默认**）|
+| `Chinese (Mandarin)_Gentle_Youth` | 温润青年 |
+| `Chinese (Mandarin)_Lyrical_Voice` | 抒情男声 |
+| `Chinese (Mandarin)_Radio_Host` | 电台男主播 |
+| `Chinese (Mandarin)_Male_Announcer` | 播报男声 |
+| `Chinese (Mandarin)_Reliable_Executive` | 沉稳高管 |
+| `Chinese (Mandarin)_News_Anchor` | 新闻女声 |
+| `Chinese (Mandarin)_Warm_Bestie` | 温暖闺蜜 |
+| `Chinese (Mandarin)_Wise_Women` | 阅历姐姐 |
+| `Chinese (Mandarin)_Sweet_Lady` | 甜美女声 |
+| `female-tianmei` | 甜美女性音色 |
+| `male-qn-jingying` | 精英青年音色 |
 
-完整列表见 MiniMax 文档，也可在控制台试听后选 ID。
+完整 300+ 音色列表：https://platform.minimaxi.com/docs/faq/system-voice-id
 
 #### 校验时长
 
