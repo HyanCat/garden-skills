@@ -147,49 +147,67 @@ AI 生成的网页有几种共有的"视觉指纹"，**全部不要**：
 
 ## 代码层最小约束
 
-不能踩的红线，其它怎么写都行：
+不能踩的红线，其它怎么写都行。下面规则**两种模式都适用**，
+**Remotion 模式额外约束**单列在最末。
 
 ### 必须用 token（换主题不破的底线）
 
-- **颜色**：`--shell` / `--surface` / `--surface-2` / `--surface-3` /
-  `--text` / `--text-2` / `--text-mute` / `--text-faint` / `--rule` /
-  `--accent` / `--accent-soft` / `--accent-glow` ——
-  **禁硬编码 hex / rgb / 颜色名**
-- **字体家族**：`--font-display-cn` / `--font-display-en` / `--font-body`
-  / `--font-mono` —— **禁硬编码字体名**
-- **主题性格签名**通过 primitive class 自动接入，**不要在章节 CSS 里
-  重定义它们**：
+- **颜色**：
+  - **Vite 模式**：`--shell` / `--surface` / `--surface-2` / `--surface-3` /
+    `--text` / `--text-2` / `--text-mute` / `--text-faint` / `--rule` /
+    `--accent` / `--accent-soft` / `--accent-glow`
+  - **Remotion 模式**：从 `src/theme.ts` 的 `T.shell` / `T.surface` / `T.text`
+    / `T.textMute` / `T.rule` / `T.accent` 等常量取
+  - **两种模式共同禁忌**：硬编码 hex / rgb / 颜色名
+- **字体家族**：
+  - **Vite 模式**：`--font-display-cn` / `--font-display-en` / `--font-body` / `--font-mono`
+  - **Remotion 模式**：`FONTS.serifCn` / `FONTS.serifEn` / `FONTS.body` / `FONTS.mono`（从 `theme.ts`）
+  - **两种模式共同禁忌**：硬编码字体名串
+- **主题性格签名**通过 primitive class 自动接入（仅 Vite 模式有 primitive class 系统；
+  Remotion 模式由 `theme.ts` 的 `T.*` token 兜底，章节按 prop 接）：
   - `.hero-num`（hero 数字风格 —— 主题决定衬线 / 等宽 / 粗黑）
   - `.rule`（分割线 —— 主题决定 1px 实线 / 4px 实线 / 2px 虚线）
   - `.card`（卡片 —— 主题决定圆角 + 阴影性格）
-  - `.stage-frame`（舞台底色 / 圆角 / 阴影 / 装饰图案 / vignette
-    全自动，章节什么都不用做）
+  - `.stage-frame`（舞台底色 / 圆角 / 阴影 / 装饰图案 / vignette）
 
 ### 可硬编码 / 可 token，按内容自由（解锁章节自由设计）
 
-- **字号**：想要 80px 就写 80px，想用 `var(--t-h1)` 也行
+- **字号**：想要 80px 就写 80px，想用 `var(--t-h1)` 也行（**字号下限表见上文**）
 - **间距 / padding / margin**：按画面节奏写具体值
 - **动画时长 / 缓动 / keyframe**：按动画意图写具体值
   （**节奏气质**参考 `theme.json` 的 `mood` —— 慢主题别写 200ms 的快动画）
 - **边框宽度 / 非性格圆角 / 字距**：随手写
 - **gap / grid 布局尺寸**：按画面构图写
 
-### 其它工程红线
+### 其它工程红线（两种模式都适用）
 
-- 不用 `setTimeout` / `setInterval` 驱动动画 —— 用 CSS keyframes
-- 章节内的可交互元素（按钮 / 自定义控件）加 `data-no-advance`，
-  否则点了会被舞台误推进 step
-- 章节代码物理隔离：每章独立文件夹、独立 CSS 类前缀，不跨章 import
-- **每章必须有 `narrations.ts`**（与 `<Chapter>.tsx` 同目录）：
-  - 数组长度 **=** 章节代码里 `if (step === N)` 出现的最大 N + 1
-  - 每个元素 = 一个 string，该 step 要播的口播文本（来自 `script.md`
-    对应段，**语义一致**——可微调标点 / 断句以适配 TTS，但不能漏关键短语）
-  - 完全无音频的过场 step 用空串 `""`，Auto 模式会按字数估时撑过
-  - 这是**音频合成 + Auto 模式自动推进的唯一真相源**，写错或漏写
-    会让录屏对不上嘴
-- **动画时长必须 ≤ 该 step 的口播时长**——Auto 模式严格按音频结束推进，
-  没有"等动画跑完"的兜底。动画太长 → 三选一：**写更长口播 / 拆 step
-  / 调动画速度**。详细机制见 [`AUDIO.md`](AUDIO.md)
+- 不用 `setTimeout` / `setInterval` 驱动动画
+- 章节代码物理隔离：每章独立文件夹，不跨章 import
+- **章节实现必须和 narrations 数组对得上**（避免音画错位）：
+  - **Vite 模式**：每章必须有 `narrations.ts`，数组长度 = 章节代码里
+    `if (step === N)` 用到的最大 N + 1
+  - **Remotion 模式**：每章 step 数 = 该章 `scenes/Step*.tsx` 个数 = `theme.ts`
+    `AUDIO_DURATIONS_SEC[<chapter-id>]` 数组长度
+  - 每个 narration 元素 = 一个 string，对应该 step 的口播文本（来自 `script.md`，
+    **语义一致**——可微调标点 / 断句以适配 TTS，但不能漏关键短语）
+  - 完全无音频的过场 step 用空串 `""`，Auto / Remotion 模式都会按估时撑过
+- **动画时长必须 ≤ 该 step 的口播时长**：
+  - **Vite 模式**：Auto 按音频结束推进，超长动画会被切；解法 = 写更长口播 / 拆 step / 调速度
+  - **Remotion 模式**：Sequence `durationInFrames = 音频帧数 + 6 帧呼吸`，
+    超出口播时长的动画延迟 frame 不会渲染（被裁），同样要避免
+
+### Remotion 模式额外约束
+
+- **🚫 CSS animation / transition / @keyframes 禁用** —— Remotion 渲染不到。
+  完工前 `grep -rE "animation:|@keyframes|transition:" src/chapters/` 应**无关键
+  动画命中**（仅可保留极少数纯装饰、不影响主时间线的）
+- **🚫 Tailwind animation class 禁用**（`animate-spin` 等 utility class）
+- **✅ 用 `useCurrentFrame()` + `interpolate()` / `spring()`** 表达所有动画。
+  时间转 frame：`ms / 1000 * fps`（@30fps：1000ms = 30 frame）
+- **✅ Audio 与 Sequence 嵌套对齐**：外层 sequence 含尾呼吸帧（默认 6 帧 = 200ms），
+  内层 `<Audio>` 严格等于音频帧数（避免尾部音轨溢出）
+- **✅ Google Fonts 模块级 loadFont**（[`REMOTION.md`](REMOTION.md) "Google Fonts 加载"）
+- 详细模式与代码示例见 [`REMOTION.md`](REMOTION.md) "动画模式：CSS keyframes → interpolate"
 
 ---
 
@@ -210,22 +228,29 @@ AI 生成的网页有几种共有的"视觉指纹"，**全部不要**：
 > **拿到自检结论后**：先按 fail 项**改完代码**，然后再向用户汇报"做完
 > 了 + 自检结论 + 改了什么"。**直接拿原始结论汇报但不修复 = 违规**。
 
-写完一章 + 在浏览器点完一遍后逐项过：
+写完一章后逐项过（**Remotion 模式 + 浏览器 Studio 翻一遍 / Vite 模式 + 浏览器点一遍**）：
+
+### 共用项（两种模式都过）
 
 - [ ] **每章至少 1~2 处 CSS / SVG / Canvas / JS 视觉演示** —— 没有 = 回去补
 - [ ] **不同 step 的主导动作不一样** —— 全章一种动画 = 回去重做
-- [ ] 字号大、留白舒服、配色舒服 —— **grep 一遍 CSS 抓 `font-size:` 1x px / 1[0-7]px**，所有 ≤17px 的字号都要按上方「字号下限表」抬到 18px+；SVG 内嵌 `<text fontSize=...>` 要按 viewBox → 屏幕换算后 ≥ 24px
+- [ ] 字号大、留白舒服、配色舒服 —— **grep 一遍代码抓 `font-size:` 或
+      `fontSize=` / `fontSize:`，所有 ≤17px 的字号按上方「字号下限表」抬到 18px+**；
+      SVG 内嵌 `<text fontSize=...>` 要按 viewBox → 屏幕换算后 ≥ 24px
 - [ ] 清单 / 列表逐个揭示，**1 项 = 1 step**
 - [ ] 画面信息比口播稿多（回了原文章抽细节挂上来）
 - [ ] 没有紫粉渐变 / 圆角彩色边框 / emoji / 假数据 / 假 logo
 - [ ] 缺的素材用 placeholder，不是 fake
-- [ ] **颜色和字体家族全部走 token**（无硬编码 hex / 字体名）；hero 数字
-      / 卡片 / 分割线 / 舞台用 primitive class 接入主题性格 —— 这两条不
-      达标 = 换主题就破
+- [ ] **颜色和字体家族全部走 token**（无硬编码 hex / 字体名）
 - [ ] 章节交付时**主动告诉用户**："本章还缺这些素材"
 - [ ] 禁止出现小号字体，大量纯文字（出现后必须回去改）
 - [ ] 禁止出现任何形式的页眉页脚，仅展示关键内容（出现后必须回去改）
 - [ ] **`npx tsc --noEmit` 通过** —— 不通过禁止汇报"做完了"
+
+### Vite 模式专属
+
+- [ ] hero 数字 / 卡片 / 分割线 / 舞台用 primitive class（`.hero-num` / `.card` / `.rule`）
+      接入主题性格 —— 不达标 = 换主题就破
 - [ ] 章节代码物理隔离：独立 CSS 类前缀（`.cd-` / `.mg-` / ...），
       未跨章 import，未修改 `chapters.ts` 之外的共享文件
 - [ ] **`narrations.ts` 存在**且 `narrations.length` === 章节代码里
@@ -235,5 +260,23 @@ AI 生成的网页有几种共有的"视觉指纹"，**全部不要**：
       观众听成同一段稿子
 - [ ] **每个 step 的视觉动画时长 ≤ 口播时长**（口播 `字数 ÷ 4` ≈ 秒数）—— 
       超出会被 Auto 模式当场切断，动画演到一半就跳下一步
+
+### Remotion 模式专属
+
+- [ ] **没用 `transition` / `animation:` CSS 属性** —— grep 章节代码应 0 命中
+      关键动画
+- [ ] **没用 Tailwind 动画 class**（`animate-*`）—— Remotion 不渲染
+- [ ] **没用 `setTimeout` / `setInterval`** —— 全部用 `useCurrentFrame` +
+      `interpolate` 或 `spring`
+- [ ] **每个动画有明确 `from` 起始帧 + 持续帧数**，落在 step 时长内
+- [ ] **音频与场景嵌套对齐**：外层 sequence 含尾呼吸帧（默认 6 帧 = 200ms），
+      内层 `<Audio>` 严格等于 `Math.round(audioDurationSec * fps)`，
+      **不要把 audio 放进尾部呼吸**
+- [ ] **章节代码不修改共享文件**：不动 `Root.tsx` / `Composition.tsx` /
+      `theme.ts`（注册 + 时长表由协调者更新）
+- [ ] **关键帧 still 渲染验证**：每章至少抽 1 帧 `npx remotion still <id>
+      out/x.png --frame=N --scale=0.5`，肉眼检查布局
+- [ ] **每个 step 的视觉动画时长 ≤ 口播时长**：超出会落在 sequence
+      `durationInFrames` 之外被裁
 
 任一未过 → 回去改。**不要**"先放着以后修"。

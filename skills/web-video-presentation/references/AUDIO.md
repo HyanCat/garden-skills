@@ -13,6 +13,15 @@ Auto 模式会自动按 step 播放并自动推进——录屏可以一镜到底
 通过 `scripts/synthesize-audio.py` 直接调用（无需额外 CLI 工具，只需 Python 3 标准库）。
 脚本启动时会交互确认模型和音色，可以在此选择其他音色。
 
+> **DMXAPI 兼容路径**：用户使用 `https://www.dmxapi.cn/v1/responses` 端点
+> （MiniMax speech-2.8-hd 协议）时，把 `synthesize-audio.py` 里的：
+> - `MINIMAX_API_URL` 改为 `https://www.dmxapi.cn/v1/responses`
+> - `Authorization` 头去掉 `Bearer ` 前缀（直接是 key）
+> - `payload` 字段从 `text` 改为 `input`，加 `output_format: "hex"`
+> - 环境变量改用 `DMXAPI_KEY`
+>
+> 其它 payload / response 解析（`base_resp.status_code` + `data.audio` hex）完全一致。
+
 ---
 
 ## 文件命名约定
@@ -131,6 +140,22 @@ done
 把每条的实际秒数汇总告诉用户。**重点关注 ≥ 15s 的条目**——口播太长意味
 着该 step 的 narration 写得过密，或者 step 没拆够。让用户决定**改稿子
 重合**还是**回章节代码拆 step**。
+
+#### Remotion 模式：填回 AUDIO_DURATIONS_SEC
+
+**Remotion 模式额外一步**：把上面 ffprobe 输出按章节 id 分组成秒数数组，
+粘进 `presentation/src/theme.ts` 的 `AUDIO_DURATIONS_SEC` 字典。例：
+
+```ts
+export const AUDIO_DURATIONS_SEC: Record<string, number[]> = {
+  coldopen:    [4.5, 7.8, 8.5, 3.5, 9.8],
+  company:     [5.3, 6.8, 6.2, 9.8, 12.0, 9.5],
+  // ... 一章一行
+};
+```
+
+**这是 Remotion 渲染的帧计算输入**——不准 = `<Sequence durationInFrames>`
+和音频对不齐，整片错位。Vite 模式不需要这一步（Auto 按 `<audio>.ended` 推进）。
 
 ---
 

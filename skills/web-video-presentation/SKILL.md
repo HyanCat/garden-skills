@@ -1,12 +1,16 @@
 ---
 name: web-video-presentation
-description: 把一篇文章或口播稿，做成"看起来像视频"的点击驱动 16:9 网页演示，可选合成口播音频。流程：原始文章 → **一次产出**口播稿 + outline 开发计划 → 用户**一次对齐** 5 件事（稿子 / outline / 主题 / 素材 / 开发模式）→ 网页开发（逐章 / 顺序 / 并行）→ 可选音频合成（默认 MiniMax CLI mmx-cli）。**outline 只规划节奏与信息密度，不规划动画** —— 动画由章节开发时按 PRINCIPLES + ANTI-AI 法则即时设计。每次点击推进口播稿的一个节拍，每一步独占整屏，进度条平时隐藏只在悬浮时出现。适用场景：用网页做视频（动态 PPT 但不像 PPT）、把口播稿 / 文章变成可交互的解说、为 B 站 / YouTube / 视频号录屏教程、做有电影感的产品 / talk demo。本 Skill 沉淀的是设计方法论 + 协作流程 —— 不绑定任何特定样式 / 字体 / 颜色 —— 因此能复用到任意主题与美学。
+description: 把一篇文章或口播稿，做成 16:9 视频。**默认产出 Remotion 项目 + `npx remotion render` 直接出 MP4**（帧精确，无录屏伪影）；用户明确要"可点击现场演示"时才走 Vite + 网页录屏旧路径。流程：原始文章 → **一次产出**口播稿 + outline 开发计划 → 用户**一次对齐** 5 件事（稿子 / outline / 主题 / 素材 / 开发模式）→ 视频开发（逐章 / 顺序 / 并行）→ 音频合成（MiniMax / DMXAPI 兼容）→ 渲染 MP4。**outline 只规划节奏与信息密度，不规划动画** —— 动画由章节开发时按 PRINCIPLES + ANTI-AI 法则即时设计。每个 step = 口播稿的一个节拍，每一步独占整屏。适用场景：把口播稿 / 文章做成发布级视频（B 站 / YouTube / 视频号），有电影感的产品 / talk demo，参数化重渲（i18n / A/B 变体）。本 Skill 沉淀的是设计方法论 + 协作流程 —— 不绑定任何特定样式 / 字体 / 颜色 —— 因此能复用到任意主题与美学。
 ---
 
 # Web Video Presentation
 
-把一篇文章或口播稿，一步步做成可录屏的"伪装成网页的视频"，可选合成
-口播音频。产出物 = Vite + React + TS 项目 + 按章节切分的音频。
+把一篇文章或口播稿，一步步做成 16:9 视频。**默认走 Remotion 路径**：
+React + frame-based 动画 → `npx remotion render` 直出 MP4，**不需要屏幕录制**。
+
+> **何时不走 Remotion**：用户明确要"可点击的现场演示 / 网页 demo"——
+> 这时回退到 Vite + 网页 + Auto 录屏的旧路径（详见 [`RECORDING.md`](references/RECORDING.md)）。
+> 其它情况（要发布到视频平台 / 要 mp4 文件 / 要参数化重渲）一律 Remotion。
 
 ## 适用场景
 
@@ -33,19 +37,23 @@ Phase 1   内容编写
 [Checkpoint Plan]      ← 必须停。一次对齐 5 件事：
                          稿子 / outline / 主题 / 素材 / 开发模式
    ▼
-Phase 2   网页开发
-   2.1  脚手架（按选定主题）
+Phase 2   视频开发（默认 Remotion；详见 references/REMOTION.md）
+   2.1  脚手架（npx create-video --blank --no-tailwind）
    2.2  第 1 章 = 主线程 + 完整版本（强制 anchor）
         ▼
-        [硬节点] 用户验收第 1 章 ← 不可跳过
+        [硬节点] 用户验收第 1 章（Studio 预览 + 关键帧 still）
         ▼
    2.3  第 2~N 章（按选定模式：A 逐章 / B 顺序 / C 并行）
    ▼
 [Checkpoint Audio]     ← 必须停。是否合成音频
    ▼
-Phase 3   音频合成（可选）
+Phase 3   音频合成（MiniMax / DMXAPI 兼容；详见 references/AUDIO.md）
+   3.1  extract-narrations 抽 segments
+   3.2  填回 theme.ts 的 AUDIO_DURATIONS_SEC（ffprobe 实测每段时长）
    ▼
-Phase 4   录屏 + 后期
+Phase 4   成片输出
+   Remotion 路径： npx remotion render Full out/full.mp4
+   Vite 路径（仅互动 demo）： Auto 模式 + 屏幕录制
 ```
 
 工作目录约定（agent 在用户当前目录下创建 / 编辑）：
@@ -55,23 +63,34 @@ my-video/
 ├── article.md          # 用户给原文时必有 —— 不删！开发阶段画面信息源
 ├── script.md           # 必有：B 站风格口播稿（决定节拍）
 ├── outline.md          # 必有：开发计划（章节切分 + 每步内容 + 信息池）
-└── presentation/       # 脚手架产出的 Vite + React + TS 项目
-    ├── src/chapters/<NN>-<id>/
-    │   ├── <Chapter>.tsx     # 视觉实现
-    │   ├── <Chapter>.css
-    │   └── narrations.ts     # ★ step 数 + 口播文本的唯一真相源
-    ├── scripts/
-    │   ├── extract-narrations.ts   # 扫所有 narrations.ts → audio-segments.json
-    │   ├── synthesize-audio.py     # 调 MiniMax API 合成 mp3
-    │   └── start-dev.sh            # 清理端口 5174 后启动 vite
-    ├── audio-segments.json         # extract 产出（合成前 review）
-    └── public/audio/<id>/<N>.mp3   # 可选：合成的音频
+└── presentation/       # 视频项目
+    │
+    │  ── 默认 Remotion 模式（详见 references/REMOTION.md） ──
+    ├── src/
+    │   ├── index.ts                # registerRoot 入口
+    │   ├── Root.tsx                # Composition 定义（Full + 各章预览）
+    │   ├── Composition.tsx         # Full：所有章节 wire up
+    │   ├── theme.ts                # ★ 主题 token + AUDIO_DURATIONS_SEC（音频时长真相源）
+    │   ├── components/             # 共用（Masthead / MaskReveal / ...）
+    │   └── chapters/<NN>-<id>/
+    │       ├── <Chapter>.tsx       # 该章节 Composition 组件
+    │       └── scenes/             # 每个 step 一个文件（可选拆）
+    │           ├── Step0XXX.tsx
+    │           └── ...
+    ├── public/audio/<id>/<N>.mp3   # 音频（共享 Vite / Remotion 两种模式）
+    ├── package.json / tsconfig.json / remotion.config.ts
+    │
+    │  ── Vite 模式（仅"互动 demo"场景） ──
+    ├── src/chapters/<NN>-<id>/<Chapter>.tsx + <Chapter>.css + narrations.ts
+    ├── src/registry/chapters.ts
+    └── scripts/{extract-narrations.ts, synthesize-audio.py, start-dev.sh}
 ```
 
-> **关键**：`narrations.ts` 是 step 数和音频合成的**唯一真相源**。
-> 章节 `.tsx` 里的 `if (step === N)` 出现的最大 N + 1 必须等于
-> `narrations.length`。这保证 5 处地方（script / outline / 章节代码 /
-> chapters.ts / 音频文件）永远不会漂。
+> **唯一真相源**（两种模式都适用）：
+> - **step 数源**：Remotion 模式 = `chapters/<id>/scenes/` 目录下文件数 / `narrations.ts` 数组长度；Vite 模式 = 章节 `.tsx` 里 `if (step === N)` 出现的最大 N + 1
+> - **音频时长源**：Remotion 模式 = `theme.ts` 的 `AUDIO_DURATIONS_SEC`（ffprobe 实测填进去）；Vite 模式 = Auto 模式按 `<audio>.ended` 事件推进，不需要时长表
+>
+> 这套约束保证 script / outline / 章节代码 / 音频文件**永远不会漂**。
 
 ---
 
@@ -109,10 +128,10 @@ Phase 2.4 的"实现单章"会重复 N 次 —— 每次都要回看核心约束
 |---|---|---|
 | Phase 1.1-1.2 内容编写 | `references/SCRIPT-STYLE.md` + `references/OUTLINE-FORMAT.md` + `article.md`（用户原文，如有） | —— |
 | **Checkpoint Plan 选主题** | —— | `themes/*/theme.json`（动态读全部，列清单 + `bestFor` 推荐 + `descriptionZh`）；`references/THEMES.md`（用户想了解主题系统时） |
-| Phase 2.1 脚手架 | —— | SKILL.md 本节看一次 |
-| **Phase 2.4 实现单章（×N 次，被 2.2 / 2.3 调用）** | **`references/CHAPTER-CRAFT.md`** 单一入口 —— Part 0 十条原则 / Part 1 开工 5 问 / Part 2 关系→动作决策树 / Part 3 视觉工具箱 / Part 4 时长参考 / Part 5 反 AI 味反模式 / Part 6 代码硬规则（**含 narrations.ts 强制约束**）/ Part 7 完工自检 / Part 8 反馈速查 + 当前主题的 `themes/<id>/theme.json` + 当前章节的 outline.md 段落 + **`article.md` 本章对应段落** + 素材清单 | `references/EXAMPLES/`（结构示意，不是抄袭模板）；`references/THEMES.md` 完整 token 契约 |
-| Phase 3 音频合成 | `references/AUDIO.md`（含 narrations.ts → segments.json → mmx 流程） | —— |
-| Phase 4 录屏 + 后期 | `references/RECORDING.md`（含 `?auto=1` 自动录屏） | —— |
+| **Phase 2.1 脚手架（Remotion）** | **`references/REMOTION.md`** —— 脚手架（含手动 fallback）/ Composition 顶层结构 / theme.ts 模板 | SKILL.md 本节看一次 |
+| **Phase 2.4 实现单章（×N 次，被 2.2 / 2.3 调用）** | **`references/CHAPTER-CRAFT.md`** 单一入口（十条原则 / 反 AI 味 / 字号下限 / 代码硬规则 / 完工自检）+ 当前主题 `themes/<id>/theme.json` + 当前章节 outline.md 段落 + **`article.md` 本章对应段落** + 素材清单 + **Remotion 模式下：`references/REMOTION.md` 的"动画模式：CSS keyframes → interpolate"章节** | `references/EXAMPLES/`（结构示意，不是抄袭模板）；`references/THEMES.md` 完整 token 契约 |
+| Phase 3 音频合成 | `references/AUDIO.md`（含 narrations.ts → segments.json → MiniMax / DMXAPI 流程） | —— |
+| Phase 4 成片输出 | `references/REMOTION.md` 末尾"渲染命令"（默认）/ `references/RECORDING.md`（仅 Vite 互动 demo 模式） | —— |
 | 选 / 造 / 切主题 | —— | `references/THEMES.md` |
 
 > **写章节时只读一份 `CHAPTER-CRAFT.md`**。十条原则 / 开工 self-prompting /
@@ -228,29 +247,40 @@ Phase 2.4 的"实现单章"会重复 N 次 —— 每次都要回看核心约束
 
 ---
 
-## Phase 2 —— 网页开发
+## Phase 2 —— 视频开发（默认 Remotion）
+
+详细规范见 [`references/REMOTION.md`](references/REMOTION.md)。
 
 ### 2.1 脚手架
+
+**默认 Remotion**：
+
+```bash
+cd <user-cwd>
+npx create-video@latest --yes --blank --no-tailwind presentation
+```
+
+跑通后**手动写**这几个项目根文件（用 Write 工具，不要 cat）：
+- `src/theme.ts` —— 把选定主题的颜色 / 字体从 `themes/<id>/tokens.css`
+  转写成 TS const，外加 `AUDIO_DURATIONS_SEC` 占位（音频合成完后填实测）
+- `src/components/Masthead.tsx` / `MaskReveal.tsx` —— 看 [`REMOTION.md`](references/REMOTION.md)
+  的"动画模式"章节抄常用组件
+
+**网络挡 github** 时（中国大陆 / 公司内网常见）：手动搭最小 6 文件骨架 +
+`npm install`（npm registry 通常已是 alibaba / npmmirror 镜像）。
+逐字模板见 [`REMOTION.md`](references/REMOTION.md) "网络不可达 github 时的手动路径"。
+
+**Vite + 网页录屏旧路径**（仅"用户明确要可点击现场演示"）：
 
 ```bash
 bash .agent/skills/web-video-presentation/scripts/scaffold.sh \
   ./presentation \
   --theme=<用户选的主题 id>
-
-bash .agent/skills/web-video-presentation/scripts/scaffold.sh --list-themes
 ```
 
 > 自定义主题 → 先按 [`references/THEMES.md`](references/THEMES.md)
-> "创作新主题"流程做一个 `themes/<my-theme>/`，再 `--theme=<my-theme>`。
-
-脚手架带一个 `01-example` demo。在写第一章真实内容前**删掉**：
-
-```bash
-rm -rf presentation/src/chapters/01-example
-```
-
-并把 `presentation/src/registry/chapters.ts` 里 `EXAMPLE_CHAPTER`
-的 import 和数组项移除。
+> "创作新主题"流程做一个 `themes/<my-theme>/` 再用。Remotion 模式下也通过
+> tokens.css 获取色板，再手动转写为 `theme.ts`。
 
 ### 2.2 第 1 章 —— 主线程 + 强制验收
 
@@ -269,7 +299,15 @@ rm -rf presentation/src/chapters/01-example
 **做完第 1 章后必须停下来**等用户验收：
 
 ```
-第 1 章 <id> 做完了，dev server 在 localhost:5174 运行。
+第 1 章 <id> 做完了。
+
+【Remotion 模式】
+  Studio 预览：cd presentation && npx remotion studio  → http://localhost:3000
+  关键帧 still：npx remotion still <id> out/x.png --frame=N --scale=0.5
+  整章 MP4：    npx remotion render <id> out/<id>.mp4
+
+【Vite 模式（互动 demo）】
+  dev server:   localhost:5174
 
 验收重点：
   □ 视觉气质对不对？符合 <theme nameZh> 的预期吗？
@@ -277,6 +315,7 @@ rm -rf presentation/src/chapters/01-example
   □ 内容驱动动画是否到位？还是有几步是无脑入场动画？
   □ 双源原则：屏幕画面有没有"口播没念但 article 能挂"的细节？
   □ 反 AI 味检查：紫粉渐变 / 圆角彩色边框 / 假插画 / emoji 是否有？
+  □ 字号下限：所有可见文本 ≥ 18px（mono 辅助小标签下限 / 主文案 ≥ 60-200px）
 
 问题告诉我，我针对性改。OK 了告诉我"继续"，我按选定模式做第 2 章及之后。
 ```
@@ -315,11 +354,14 @@ rm -rf presentation/src/chapters/01-example
 - 当前章节 outline 段落（含信息池）
 - `references/CHAPTER-CRAFT.md` 的路径（**单一必读** —— 视觉演示要求 +
   逐步揭示 + 双源原则 + 反 AI 味 + 代码红线 + 完工自检全部在这一份里）
+- **Remotion 模式额外必读**：`references/REMOTION.md` 的"动画模式：CSS keyframes
+  → interpolate"小节（CSS / Tailwind animation 禁用，全用 `interpolate` / `spring`）
 - 当前主题 `theme.json` 的 `descriptionZh` / `mood` / `bestFor`（参考气质
   即可，动画 / 时长 / 字号 / emoji 由 chapter agent 自由决定）
 - **第 1 章代码作为"代码风格"参考**（不是"视觉抄袭对象"）
-- 硬规则：每章独立 CSS 前缀（`.cd-` / `.mg-` / `.pm-` / ...）；
-  不修改 `chapters.ts`；完工跑 `npx tsc --noEmit`
+- 硬规则：每章独立文件夹 + 文件级隔离；不修改 `Root.tsx` / `Composition.tsx` /
+  `theme.ts` 等共享文件（章节注册由协调者统一做）；完工跑 `npx tsc --noEmit` +
+  渲一帧 still 验证
 
 **重要**：无论选哪种模式，**用户随时可以中途切换模式**。第 2 章 OK
 后用户说"剩下的并行" / "剩下的逐章" 都行。
@@ -339,9 +381,12 @@ rm -rf presentation/src/chapters/01-example
 - **完工自检逐项过**，不达标回去改 —— 按上文「硬性自检协议」执行
   （优先 Agent Teams → subAgent → 自检），**改完再向用户汇报本章交付**
 
-### 2.5 大改后 bump STORAGE_KEY
+### 2.5 章节结构变化后的同步
 
-改动 `chapters.ts`（增加 / 删除 / 重排章节，或某章 `narrations.ts`
+**Remotion 模式**：改了某章的 step 数 → 同步更新 `theme.ts` 的 `AUDIO_DURATIONS_SEC`
+对应章节数组长度 → `Root.tsx` 的 `durationInFrames` 自动跟着算 → 重渲。
+
+**Vite 模式**：改动 `chapters.ts`（增加 / 删除 / 重排章节，或某章 `narrations.ts`
 长度变化）后，**bump** `presentation/src/hooks/useStepper.ts` 的
 `STORAGE_KEY`（如 `v4` → `v5`），避免持久化游标落到不存在的 step 上。
 
@@ -352,47 +397,83 @@ rm -rf presentation/src/chapters/01-example
 Phase 2 结束后必须停下来，问用户：
 
 ```
-网页做完，{N} 章 {M} 步，dev server 在 localhost:5174 跑着。
+视频章节做完，{N} 章 {M} 步。
 
-要不要合成音频做"自动播放录屏"？
-  ✓ 合成 → 扫所有章节的 narrations.ts 出 audio-segments.json，
-           调 MiniMax API 合成每步一个 mp3 到 public/audio/。
-           合成完后用 ?auto=1 模式可以一镜到底录屏（音视频天然同步）。
-           需要 MINIMAX_API_KEY（见 references/AUDIO.md 获取方式）。
-  ✗ 不合成 → 跳过 Phase 3，直接 Phase 4 用手动录屏 + 后期配音。
+【Remotion 模式】预览：cd presentation && npx remotion studio
+【Vite 模式】预览：    localhost:5174
+
+要不要合成音频？
+  ✓ 合成 → 扫所有章节的 narrations 出 audio-segments.json，
+           调 MiniMax / DMXAPI 合成每步一个 mp3 到 public/audio/。
+           Remotion 模式：合成完后用 ffprobe 实测时长，填回 theme.ts 的
+                          AUDIO_DURATIONS_SEC，然后 npx remotion render 出片。
+           Vite 模式：合成完后 ?auto=1 一镜到底录屏。
+           需要 API key（详见 references/AUDIO.md）。
+  ✗ 不合成 →
+           Remotion 模式：用静音版渲 mp4，或后期配音
+           Vite 模式：手动点击推进 + 后期配音
 ```
 
 要合成 → Phase 3。不合成 → 直接 Phase 4。
 
 ---
 
-## Phase 3 —— 音频合成（可选）
+## Phase 3 —— 音频合成
 
 详细流程见 [`references/AUDIO.md`](references/AUDIO.md)。简版：
 
 ```bash
 cd presentation
-npm run extract-narrations   # 扫所有 narrations.ts → audio-segments.json
+npm run extract-narrations   # 扫 narrations → audio-segments.json
 # 让用户扫一眼 audio-segments.json 确认文本对
-npm run synthesize-audio     # 调 MiniMax API 串行合成；增量、跳过已存在
-                             # 需要 MINIMAX_API_KEY（见 references/AUDIO.md）
+npm run synthesize-audio     # 调 MiniMax / DMXAPI 串行合成；增量、跳过已存在
+                             # 需要 API key（见 references/AUDIO.md）
 ```
+
+**Remotion 模式额外一步**：合成完用 ffprobe 测每段实际时长，更新 `theme.ts` 的
+`AUDIO_DURATIONS_SEC`：
+
+```bash
+for f in public/audio/*/*.mp3; do
+  d=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$f")
+  echo "$f: $d"
+done
+```
+
+把按章分组的秒数粘进 `theme.ts` —— 这是 frame 计算的输入，不准会音画错位。
 
 合成完告诉用户：输出位置 / 总段数 / 哪些段时长异常（太长 = 该 step 拆
 分；太短 = 文案太薄）—— 给最后一次校准节奏的机会。然后进入 Phase 4。
 
 ---
 
-## Phase 4 —— 录屏 + 后期
+## Phase 4 —— 成片输出
 
-详见 [`references/RECORDING.md`](references/RECORDING.md)。两种路径：
+### Remotion 模式（默认）
+
+```bash
+cd presentation
+npx remotion render Full out/full.mp4              # 默认 1080p / 30fps / h.264
+npx remotion render Full --concurrency=4           # 并发提速（M1/M2 Pro 建议 2~4）
+npx remotion still <id> out/x.png --frame=N        # 单帧导出（QA / 海报）
+```
+
+**完了**——文件就在 `out/full.mp4`，可以直接发布。无需录屏，无需后期对音轨。
+
+需要参数化变体（不同语言 / A/B 标题）→ [`REMOTION.md`](references/REMOTION.md)
+"Composition 顶层结构"看 `defaultProps` + Zod schema 用法。
+
+### Vite 模式（仅互动 demo 场景）
+
+详见 [`references/RECORDING.md`](references/RECORDING.md)。
 
 | 场景 | 推荐路径 |
 |---|---|
-| Phase 3 已合成音频 | **Auto 模式一镜到底**：浏览器开 `localhost:5174/?auto=1` → 按 SPACE → 整片自动播完 → 停录 → 裁头尾即成片，**无需后期对音轨** |
+| Phase 3 已合成音频 | **Auto 模式一镜到底**：浏览器开 `localhost:5174/?auto=1` → 按 SPACE → 整片自动播完 → 停录 → 裁头尾即成片 |
 | Phase 3 跳过 | 默认 Manual 模式手动点击推进 → 后期任意剪辑工具配音 |
 
-> agent 在 Phase 3 / Checkpoint Audio 后**主动告诉用户**适合的录屏路径。
+> agent 在 Phase 3 / Checkpoint Audio 后**主动告诉用户**适合的成片路径
+> （Remotion 路径就一个 `npx remotion render` 命令）。
 
 ---
 
@@ -432,11 +513,12 @@ Part 8「常见反馈速查」。**关键**：先定位是哪一层（节奏 / �
 |---|---|---|
 | [`references/SCRIPT-STYLE.md`](references/SCRIPT-STYLE.md) | Phase 1.2 必读 | 文章 → 口播稿规则、平台变体 |
 | [`references/OUTLINE-FORMAT.md`](references/OUTLINE-FORMAT.md) | Phase 1.2 必读 | outline.md 字段 spec、命名约定、章节切分、信息池 |
-| [`references/CHAPTER-CRAFT.md`](references/CHAPTER-CRAFT.md) | **Phase 2.4 每章单一必读入口** | Part 0 十条原则 / Part 1 开工 5 问 / Part 2 关系→动作决策树 / Part 3 视觉工具箱 / Part 4 时长 / Part 5 反 AI 味反模式 / Part 6 代码硬规则 / Part 7 完工自检 / Part 8 反馈速查 |
+| [`references/REMOTION.md`](references/REMOTION.md) | **Phase 2 默认必读（Remotion 模式）** | 脚手架（含手动 fallback）/ Composition 结构 / theme.ts 模板 / CSS keyframes → interpolate / Google Fonts / 渲染命令 / 常见坑 |
+| [`references/CHAPTER-CRAFT.md`](references/CHAPTER-CRAFT.md) | **Phase 2.4 每章单一必读入口** | 十条原则 / 开工 5 问 / 决策树 / 视觉工具箱 / 时长 / 反 AI 味 / 字号下限 / 代码硬规则 / 完工自检 / 反馈速查 |
 | [`references/EXAMPLES/`](references/EXAMPLES/) | **可选** —— 看结构 | 章节结构示意（hook / list-reveal / case-tech-review）；**不是抄袭模板** |
 | [`references/THEMES.md`](references/THEMES.md) | 选 / 造 / 切主题时 | 完整 token 契约 + 内置主题清单 + 创作流程 |
-| [`references/AUDIO.md`](references/AUDIO.md) | Phase 3 才读 | MiniMax CLI、TTS 退化路径、故障排查 |
-| [`references/RECORDING.md`](references/RECORDING.md) | Phase 4 才读 | 录屏工具 + 后期合成 |
+| [`references/AUDIO.md`](references/AUDIO.md) | Phase 3 才读 | MiniMax / DMXAPI 兼容、TTS 流程、故障排查 |
+| [`references/RECORDING.md`](references/RECORDING.md) | Phase 4 才读（仅 Vite 模式） | 录屏工具 + 后期合成 |
 | [`themes/`](themes) | Checkpoint Plan / Phase 1.2 时翻 | 内置主题（每个含 `theme.json` + `tokens.css`） |
-| [`scripts/scaffold.sh`](scripts/scaffold.sh) | Phase 2.1 跑一次 | 一键项目脚手架 |
+| [`scripts/scaffold.sh`](scripts/scaffold.sh) | 仅 Vite 模式 | 一键 Vite 项目脚手架（Remotion 用 `npx create-video`） |
 
